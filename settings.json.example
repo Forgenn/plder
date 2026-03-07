@@ -1,0 +1,10 @@
+{
+  "extensions": [
+    "./extensions/disable-resistance.ts"
+  ],
+  "packages": [
+    "npm:pi-subagents",
+    "npm:@marckrenn/pi-sub-bar",
+    "npm:@juanibiapina/pi-tokyonight"
+  ]
+}
