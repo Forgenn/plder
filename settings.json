@@ -5,8 +5,8 @@
   "steeringMode": "one-at-a-time",
   "followUpMode": "one-at-a-time",
   "packages": [
-    "npm:@nicepkg/shitty-extensions",
-    "git:github.com/nicepkg/pi-skills"
+    "npm:shitty-extensions",
+    "git:github.com/badlogic/pi-skills"
   ],
   "extensions": [
     "./extensions"

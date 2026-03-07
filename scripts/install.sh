@@ -28,8 +28,8 @@ info "Pi found: $(pi --version 2>/dev/null || echo 'unknown version')"
 info "Installing community packages..."
 
 PACKAGES=(
-    "npm:@nicepkg/shitty-extensions"
-    "git:github.com/nicepkg/pi-skills"
+    "npm:shitty-extensions"
+    "git:github.com/badlogic/pi-skills"
 )
 
 for pkg in "${PACKAGES[@]}"; do
