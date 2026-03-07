@@ -9,9 +9,9 @@ Pi (vanilla) + cherry-picked community packages + custom TypeScript extensions +
 ## Stack
 
 - **Runtime**: Pi coding agent
-- **Providers**: Anthropic (Claude via OAuth), Zhipu AI (GLM via API key)
+- **Providers**: Anthropic (Claude via OAuth), Z.AI/GLM (built-in, via `ZAI_API_KEY`)
 - **Community**: shitty-extensions, pi-skills, subagent package
-- **Custom extensions**: GLM provider, model routing, project context
+- **Custom extensions**: model routing, project context
 - **Custom skills**: brainstorming, TDD, git worktree, code review
 
 ## Setup

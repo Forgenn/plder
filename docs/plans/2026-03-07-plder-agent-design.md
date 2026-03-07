@@ -23,7 +23,6 @@ Pi (vanilla runtime)
 |   +-- code-review --- review scoring + auto-merge + CI verification
 |
 +-- Custom Extensions (TypeScript, ~/.pi/agent/extensions/)
-    +-- glm-provider.ts --- Zhipu AI as Pi provider
     +-- model-router.ts --- smart model routing by task type
     +-- project-context.ts --- project awareness + persistent memory
 ```
@@ -35,12 +34,12 @@ Pi (vanilla runtime)
 - Auth: OAuth token (local development machine)
 - Models: Claude Opus (complex reasoning), Claude Sonnet (code gen), Claude Haiku (cheap tasks)
 
-### GLM (Zhipu AI) - Custom Extension
-- Custom provider extension using `pi.registerProvider()`
-- Auth: `GLM_API_KEY` environment variable
-- Base URL: `https://open.bigmodel.cn/api/paas/v4/`
-- Models: GLM-4-Plus, GLM-4-Flash (cheap), GLM-4V (vision)
-- API format: OpenAI-compatible (`openai-chat` in Pi's provider system)
+### GLM (Zhipu AI / Z.AI) - Built-in
+- Uses Pi's native `zai` provider (built-in since Pi includes GLM-4.5/4.7 models)
+- Auth: `ZAI_API_KEY` environment variable
+- Base URL: `https://api.z.ai/api/coding/paas/v4`
+- Models: GLM-4.5-Flash (cheap), GLM-4.7 (reasoning), GLM-4.5V (vision)
+- API format: `openai-completions`
 
 ## Community Packages
 
@@ -114,37 +113,18 @@ Pi (vanilla runtime)
 
 ## Custom Extensions
 
-### 1. glm-provider.ts
-Registers Zhipu AI (GLM) as a Pi provider.
-
-```typescript
-// Pseudocode
-export default function(pi: ExtensionAPI) {
-  pi.registerProvider("glm", {
-    baseUrl: "https://open.bigmodel.cn/api/paas/v4/",
-    apiKey: "GLM_API_KEY",
-    api: "openai-chat",
-    models: [
-      { id: "glm-4-plus", name: "GLM-4 Plus" },
-      { id: "glm-4-flash", name: "GLM-4 Flash" },
-      { id: "glm-4v", name: "GLM-4V" },
-    ]
-  });
-}
-```
-
-### 2. model-router.ts
+### 1. model-router.ts
 Hooks into task context to route to the appropriate model.
 
 **Routing rules**:
-- Exploration/search/simple questions -> GLM-4-Flash (cheapest)
-- Code generation, editing, refactoring -> Claude Sonnet
-- Complex reasoning, architecture, debugging -> Claude Opus
-- Vision tasks -> GLM-4V
+- Exploration/search/simple questions -> GLM-4.5-Flash (zai, cheapest)
+- Code generation, editing, refactoring -> Claude Sonnet (anthropic)
+- Complex reasoning, architecture, debugging -> Claude Opus (anthropic)
+- Vision tasks -> GLM-4.5V (zai)
 
-Implementation: hooks into `before_agent_start` or `model_select` events, analyzes the user's input to determine task category, sets model accordingly.
+Implementation: hooks into `input` event, analyzes the user's input to classify task type, sets model accordingly.
 
-### 3. project-context.ts
+### 2. project-context.ts
 Provides project awareness and persistent memory.
 
 **On session_start**:
@@ -167,7 +147,6 @@ plder/
     plans/
       2026-03-07-plder-agent-design.md  (this file)
   extensions/
-    glm-provider.ts
     model-router.ts
     project-context.ts
   skills/
@@ -200,12 +179,11 @@ plder/
 
 ## Build Order
 
-1. **Phase 1 - Foundation** (day 1): Install Pi, configure Anthropic provider, install community packages
-2. **Phase 2 - GLM Provider**: Write and test `glm-provider.ts`
-3. **Phase 3 - Core Skills**: Port `brainstorming` and `tdd` skills
-4. **Phase 4 - Routing & Context**: Write `model-router.ts` and `project-context.ts`
-5. **Phase 5 - Workflow Skills**: Port `git-worktree` and `code-review` skills
-6. **Phase 6 - Tune & Iterate**: Real-world usage, adjust prompts and routing
+1. **Phase 1 - Foundation**: Install Pi, configure Anthropic + ZAI providers, install community packages
+2. **Phase 2 - Core Skills**: Port `brainstorming` and `tdd` skills
+3. **Phase 3 - Routing & Context**: Write `model-router.ts` and `project-context.ts`
+4. **Phase 4 - Workflow Skills**: Port `git-worktree` and `code-review` skills
+5. **Phase 5 - Tune & Iterate**: Real-world usage, adjust prompts and routing
 
 ## Trade-offs
 
@@ -217,7 +195,7 @@ plder/
 - BYO API keys (no subscription cost beyond tokens)
 
 **Trades**:
-- Time to build/port (4 skills, 3 extensions)
+- Time to build/port (4 skills, 2 extensions)
 - Community package stability risk
 - Terminal only (no IDE integration)
 - No built-in permission sandbox (YOLO by default)

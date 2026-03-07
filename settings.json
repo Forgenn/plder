@@ -1,0 +1,23 @@
+{
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-sonnet-4-20250514",
+  "defaultThinkingLevel": "medium",
+  "steeringMode": "one-at-a-time",
+  "followUpMode": "one-at-a-time",
+  "packages": [
+    "npm:@nicepkg/shitty-extensions",
+    "git:github.com/nicepkg/pi-skills"
+  ],
+  "extensions": [
+    "./extensions"
+  ],
+  "skills": [
+    "./skills"
+  ],
+  "enableSkillCommands": true,
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 16384,
+    "keepRecentTokens": 20000
+  }
+}
