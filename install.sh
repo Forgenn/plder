@@ -49,4 +49,15 @@ for skill_dir in "${SCRIPT_DIR}/skills/"*/; do
     info "${name} -> ${target}"
 done
 
+# Symlink themes
+mkdir -p "${AGENT_DIR}/themes"
+for theme in "${SCRIPT_DIR}/themes/"*.json; do
+    [ -f "$theme" ] || continue
+    name="$(basename "$theme")"
+    target="${AGENT_DIR}/themes/${name}"
+    [ -L "$target" ] && rm "$target"
+    ln -s "$theme" "$target"
+    info "${name} -> ${target}"
+done
+
 info "Done. Run 'pi' from any directory."

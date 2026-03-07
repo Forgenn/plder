@@ -4,7 +4,10 @@
   ],
   "packages": [
     "npm:pi-subagents",
-    "npm:@marckrenn/pi-sub-bar",
-    "npm:@juanibiapina/pi-tokyonight"
-  ]
+    "npm:@marckrenn/pi-sub-bar"
+  ],
+  "themes": [
+    "./themes"
+  ],
+  "theme": "tokyonight-storm"
 }
