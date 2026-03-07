@@ -3,7 +3,7 @@ import type {
 	BeforeAgentStartEventResult,
 	ExtensionAPI,
 } from "@mariozechner/pi-coding-agent";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync } from "fs";
 import { homedir } from "os";
 import { basename, join } from "path";
 
@@ -14,10 +14,16 @@ function getMemoryPath(cwd: string): string {
 	return join(MEMORY_DIR, `${projectName}.md`);
 }
 
+const MAX_MEMORY_CHARS = 4000;
+
 function readMemory(cwd: string): string {
 	const path = getMemoryPath(cwd);
 	if (!existsSync(path)) return "";
-	return readFileSync(path, "utf-8");
+	const content = readFileSync(path, "utf-8");
+	if (content.length > MAX_MEMORY_CHARS) {
+		return `${content.slice(0, MAX_MEMORY_CHARS)}\n...(truncated)`;
+	}
+	return content;
 }
 
 function readProjectConfig(cwd: string): string {
@@ -86,10 +92,10 @@ export default function (pi: ExtensionAPI) {
 	);
 
 	pi.on("session_shutdown", async (_event, ctx) => {
-		// Extract and save learned patterns
-		// This is a placeholder — in practice, the agent would analyze the
-		// conversation to extract patterns. For now, we ensure the memory
-		// directory exists so skills and manual saves work.
+		// TODO (Phase 5 - Tune & Iterate): Implement automatic memory extraction.
+		// Should analyze conversation to extract learned patterns, update the
+		// memory file, and deduplicate/prune stale entries. For now, memory is
+		// read-only (manually edited or written by skills).
 		mkdirSync(MEMORY_DIR, { recursive: true });
 	});
 
