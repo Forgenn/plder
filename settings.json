@@ -1,23 +1,8 @@
 {
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-sonnet-4-20250514",
-  "defaultThinkingLevel": "medium",
-  "steeringMode": "one-at-a-time",
-  "followUpMode": "one-at-a-time",
-  "packages": [
-    "npm:shitty-extensions",
-    "git:github.com/badlogic/pi-skills"
-  ],
   "extensions": [
-    "./extensions"
+    "./extensions/disable-resistance.ts"
   ],
-  "skills": [
-    "./skills"
-  ],
-  "enableSkillCommands": true,
-  "compaction": {
-    "enabled": true,
-    "reserveTokens": 16384,
-    "keepRecentTokens": 20000
-  }
+  "packages": [
+    "npm:shitty-extensions"
+  ]
 }
