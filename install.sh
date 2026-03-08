@@ -27,6 +27,18 @@ fi
 ln -s "${SCRIPT_DIR}/settings.json" "${AGENT_DIR}/settings.json"
 info "settings.json -> ${AGENT_DIR}/settings.json"
 
+# Symlink models.json -> ~/.pi/agent/models.json
+if [ -f "${SCRIPT_DIR}/models.json" ]; then
+    if [ -L "${AGENT_DIR}/models.json" ]; then
+        rm "${AGENT_DIR}/models.json"
+    elif [ -f "${AGENT_DIR}/models.json" ]; then
+        mv "${AGENT_DIR}/models.json" "${AGENT_DIR}/models.json.bak"
+        warn "Backed up existing models.json to models.json.bak"
+    fi
+    ln -s "${SCRIPT_DIR}/models.json" "${AGENT_DIR}/models.json"
+    info "models.json -> ${AGENT_DIR}/models.json"
+fi
+
 # Symlink extensions
 mkdir -p "${AGENT_DIR}/extensions"
 for ext in "${SCRIPT_DIR}/extensions/"*.ts; do
