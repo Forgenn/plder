@@ -1,5 +1,4 @@
 node_modules/
 .pi/
 *.log
-settings.json
 models.json

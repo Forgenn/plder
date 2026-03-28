@@ -26,6 +26,8 @@ Look for project signals to determine the test framework:
 
 If unclear, ask the user.
 
+**K8s Remote Mode**: If K8s remote execution is active, tests run on the remote pod automatically. The test runner detection and execution works the same — all bash commands route through kubectl.
+
 ### Step 2: Write Failing Test
 
 1. Create or open the test file for the module you're changing

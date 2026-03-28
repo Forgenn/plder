@@ -8,6 +8,9 @@ info() { echo "[+] $1"; }
 warn() { echo "[!] $1"; }
 error() { echo "[x] $1"; exit 1; }
 
+warn "NOTE: Symlink install is legacy. Prefer: pi install git:github.com/Forgenn/plder"
+echo ""
+
 # Check Pi is installed
 command -v pi &>/dev/null || error "Pi not installed. Run: npm install -g @mariozechner/pi-coding-agent"
 
