@@ -1,0 +1,19 @@
+{
+  "name": "@plder/agent",
+  "version": "1.0.0",
+  "description": "Personal development agent with remote K8s execution, auth failover, and structured workflows",
+  "keywords": ["pi-package"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Forgenn/plder"
+  },
+  "license": "MIT",
+  "pi": {
+    "extensions": ["./extensions"],
+    "skills": ["./skills"],
+    "themes": ["./themes"]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": ">=0.62.0"
+  }
+}
