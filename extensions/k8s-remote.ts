@@ -251,6 +251,90 @@ function createRemoteBashOps(
 	};
 }
 
+// --- kubectl management commands ---
+
+function kubectlRun(
+	args: string[],
+	stdin?: string,
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+	return new Promise((resolve, reject) => {
+		const child = spawn("kubectl", args, {
+			stdio: [stdin !== undefined ? "pipe" : "ignore", "pipe", "pipe"],
+		});
+		let stdout = "";
+		let stderr = "";
+		child.stdout.on("data", (d) => (stdout += d));
+		child.stderr.on("data", (d) => (stderr += d));
+		if (stdin !== undefined && child.stdin) {
+			child.stdin.write(stdin);
+			child.stdin.end();
+		}
+		child.on("error", reject);
+		child.on("close", (code) => resolve({ stdout, stderr, exitCode: code ?? 1 }));
+	});
+}
+
+function generateStatefulSetYaml(config: K8sConfig, user: string): string {
+	const name = `plder-dev-${user}`;
+	const ns = config.namespace;
+	const image = config.image || DEFAULTS.image!;
+	const cpu = config.resources?.cpu || DEFAULTS.resources!.cpu!;
+	const memory = config.resources?.memory || DEFAULTS.resources!.memory!;
+	const storageClass = config.storageClass || DEFAULTS.storageClass!;
+	const storageSize = config.storageSize || DEFAULTS.storageSize!;
+
+	return `apiVersion: v1
+kind: Service
+metadata:
+  name: ${name}
+  namespace: ${ns}
+spec:
+  clusterIP: None
+  selector:
+    app: plder-dev
+    user: ${user}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ${name}
+  namespace: ${ns}
+spec:
+  serviceName: ${name}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: plder-dev
+      user: ${user}
+  template:
+    metadata:
+      labels:
+        app: plder-dev
+        user: ${user}
+    spec:
+      containers:
+      - name: dev
+        image: ${image}
+        command: ["sleep", "infinity"]
+        workingDir: /home/dev
+        resources:
+          limits:
+            cpu: "${cpu}"
+            memory: "${memory}"
+        volumeMounts:
+        - name: home
+          mountPath: /home/dev
+  volumeClaimTemplates:
+  - metadata:
+      name: home
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: ${storageClass}
+      resources:
+        requests:
+          storage: ${storageSize}`;
+}
+
 // --- Config loading ---
 
 async function loadK8sConfig(cwd: string): Promise<K8sConfig | null> {
@@ -491,7 +575,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("k8s", {
 		description: "K8s remote execution status and management",
 		getArgumentCompletions: (prefix) => {
-			const cmds = ["status", "local", "connect"];
+			const cmds = ["status", "local", "connect", "create", "suspend", "resume", "destroy"];
 			return cmds
 				.filter((c) => c.startsWith(prefix))
 				.map((c) => ({ value: c, label: c }));
@@ -549,8 +633,160 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
+			if (subcmd === "create") {
+				const config = await loadK8sConfig(ctx.cwd);
+				if (!config) {
+					ctx.ui.notify("No .pi/k8s.json found", "error");
+					return;
+				}
+
+				const user = process.env.USER || process.env.USERNAME || "dev";
+				const yaml = generateStatefulSetYaml(config, user);
+
+				ctx.ui.notify(`Creating StatefulSet plder-dev-${user} in ${config.namespace}...`, "info");
+				const r = await kubectlRun(["apply", "-f", "-"], yaml);
+				if (r.exitCode !== 0) {
+					ctx.ui.notify(`Failed: ${r.stderr}`, "error");
+					return;
+				}
+
+				ctx.ui.notify("Waiting for pod to be ready...", "info");
+				const waitResult = await kubectlRun([
+					"wait", "--for=condition=ready", "pod",
+					"-l", `app=plder-dev,user=${user}`,
+					"-n", config.namespace,
+					"--timeout=120s",
+				]);
+
+				if (waitResult.exitCode !== 0) {
+					ctx.ui.notify(`Pod not ready: ${waitResult.stderr}`, "error");
+					return;
+				}
+
+				const podName = await findPod(config.namespace, `app=plder-dev,user=${user}`);
+				if (podName && await checkPodReady(config.namespace, podName, config.container)) {
+					k8s = {
+						ns: config.namespace,
+						pod: podName,
+						container: config.container,
+						remoteCwd: config.remoteCwd,
+					};
+					ctx.ui.setStatus(
+						"k8s",
+						ctx.ui.theme.fg("accent", `K8s: ${k8s.ns}/${k8s.pod} @ ${k8s.remoteCwd}`),
+					);
+					ctx.ui.notify(`Created and connected: ${k8s.ns}/${k8s.pod}`, "info");
+				}
+				return;
+			}
+
+			if (subcmd === "suspend") {
+				const config = await loadK8sConfig(ctx.cwd);
+				if (!config) {
+					ctx.ui.notify("No .pi/k8s.json found", "error");
+					return;
+				}
+
+				const user = process.env.USER || process.env.USERNAME || "dev";
+				const name = `plder-dev-${user}`;
+
+				const r = await kubectlRun([
+					"scale", "statefulset", name,
+					"-n", config.namespace, "--replicas=0",
+				]);
+
+				if (r.exitCode !== 0) {
+					ctx.ui.notify(`Failed: ${r.stderr}`, "error");
+					return;
+				}
+
+				k8s = null;
+				ctx.ui.setStatus("k8s", undefined);
+				ctx.ui.notify(`Suspended ${name} (data preserved)`, "info");
+				return;
+			}
+
+			if (subcmd === "resume") {
+				const config = await loadK8sConfig(ctx.cwd);
+				if (!config) {
+					ctx.ui.notify("No .pi/k8s.json found", "error");
+					return;
+				}
+
+				const user = process.env.USER || process.env.USERNAME || "dev";
+				const name = `plder-dev-${user}`;
+
+				ctx.ui.notify(`Resuming ${name}...`, "info");
+				const r = await kubectlRun([
+					"scale", "statefulset", name,
+					"-n", config.namespace, "--replicas=1",
+				]);
+
+				if (r.exitCode !== 0) {
+					ctx.ui.notify(`Failed: ${r.stderr}`, "error");
+					return;
+				}
+
+				const waitResult = await kubectlRun([
+					"wait", "--for=condition=ready", "pod",
+					"-l", `app=plder-dev,user=${user}`,
+					"-n", config.namespace,
+					"--timeout=120s",
+				]);
+
+				if (waitResult.exitCode !== 0) {
+					ctx.ui.notify(`Pod not ready: ${waitResult.stderr}`, "error");
+					return;
+				}
+
+				const podName = await findPod(config.namespace, `app=plder-dev,user=${user}`);
+				if (podName && await checkPodReady(config.namespace, podName, config.container)) {
+					k8s = {
+						ns: config.namespace,
+						pod: podName,
+						container: config.container,
+						remoteCwd: config.remoteCwd,
+					};
+					ctx.ui.setStatus(
+						"k8s",
+						ctx.ui.theme.fg("accent", `K8s: ${k8s.ns}/${k8s.pod} @ ${k8s.remoteCwd}`),
+					);
+					ctx.ui.notify(`Resumed and connected: ${k8s.ns}/${k8s.pod}`, "info");
+				}
+				return;
+			}
+
+			if (subcmd === "destroy") {
+				const config = await loadK8sConfig(ctx.cwd);
+				if (!config) {
+					ctx.ui.notify("No .pi/k8s.json found", "error");
+					return;
+				}
+
+				const user = process.env.USER || process.env.USERNAME || "dev";
+				const name = `plder-dev-${user}`;
+
+				const confirm = ctx.hasUI
+					? await ctx.ui.confirm("Destroy dev pod", `Delete ${name} and its PVC? Data will be lost.`)
+					: true;
+
+				if (!confirm) {
+					ctx.ui.notify("Cancelled", "info");
+					return;
+				}
+
+				await kubectlRun(["delete", "statefulset", name, "-n", config.namespace, "--ignore-not-found"]);
+				await kubectlRun(["delete", "service", name, "-n", config.namespace, "--ignore-not-found"]);
+				await kubectlRun(["delete", "pvc", `home-${name}-0`, "-n", config.namespace, "--ignore-not-found"]);
+
+				k8s = null;
+				ctx.ui.setStatus("k8s", undefined);
+				ctx.ui.notify(`Destroyed ${name} and PVC`, "info");
+				return;
+			}
+
 			ctx.ui.notify(
-				`Unknown subcommand: ${subcmd}. Available: status, local, connect`,
+				`Unknown subcommand: ${subcmd}. Available: status, local, connect, create, suspend, resume, destroy`,
 				"warning",
 			);
 		},
