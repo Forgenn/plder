@@ -19,6 +19,8 @@ User says "build", "add", "create", "implement", or describes a new feature/comp
 2. Scan recent git commits (`git log --oneline -20`)
 3. Understand what already exists that's relevant
 
+**K8s Remote Mode**: If K8s remote execution is active (check /k8s status), file reads and git operations execute on the remote pod. This is transparent — use tools normally.
+
 ### Step 2: Clarify Intent
 
 Ask clarifying questions **one at a time**. Prefer multiple-choice when possible.

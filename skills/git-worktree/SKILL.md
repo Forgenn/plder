@@ -18,6 +18,8 @@ User says "start feature", "new branch", "work on X", or begins a new implementa
 
 ## Flow
 
+**K8s Remote Mode**: If K8s remote execution is active, git commands (worktree add, push, branch) execute on the pod. The repo lives on the pod's PVC, not locally. Use `/k8s` to check connection status before starting.
+
 ### Step 1: Create Worktree
 
 ```bash

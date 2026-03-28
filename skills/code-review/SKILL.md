@@ -13,6 +13,8 @@ User says "review", "ready for review", or a feature implementation is complete.
 
 ## Flow
 
+**K8s Remote Mode**: If K8s remote execution is active, `gh` and `git diff` commands execute on the pod. Ensure the pod has `gh` installed and authenticated.
+
 ### Step 1: Identify Changes
 
 ```bash
