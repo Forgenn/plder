@@ -76,9 +76,9 @@ export default function (pi: ExtensionAPI) {
 
 		const errorStr = String(event.error);
 		const isRateLimit =
-			errorStr.includes("429") ||
-			errorStr.includes("529") ||
-			errorStr.includes("rate") ||
+			errorStr.includes("status 429") || errorStr.includes("status: 429") ||
+			errorStr.includes("status 529") || errorStr.includes("status: 529") ||
+			errorStr.includes("rate limit") || errorStr.includes("rate_limit") ||
 			errorStr.includes("overloaded");
 
 		if (isRateLimit) {

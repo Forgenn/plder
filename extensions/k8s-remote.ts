@@ -156,7 +156,8 @@ function createRemoteReadOps(
 	remoteCwd: string,
 	localCwd: string,
 ): ReadOperations {
-	const toRemote = (p: string) => p.replace(localCwd, remoteCwd);
+	const toRemote = (p: string) =>
+		p.startsWith(localCwd) ? remoteCwd + p.slice(localCwd.length) : p;
 	return {
 		readFile: async (p) => {
 			const r = await kubectlExec(ns, pod, container, ["cat", toRemote(p)]);
@@ -199,15 +200,16 @@ function createRemoteWriteOps(
 	remoteCwd: string,
 	localCwd: string,
 ): WriteOperations {
-	const toRemote = (p: string) => p.replace(localCwd, remoteCwd);
+	const toRemote = (p: string) =>
+		p.startsWith(localCwd) ? remoteCwd + p.slice(localCwd.length) : p;
 	return {
 		writeFile: async (p, content) => {
-			const b64 = Buffer.from(content).toString("base64");
-			const r = await kubectlExec(ns, pod, container, [
-				"bash",
-				"-c",
-				`echo '${b64}' | base64 -d > ${JSON.stringify(toRemote(p))}`,
-			]);
+			const data = typeof content === "string" ? content : content.toString();
+			const r = await kubectlExec(
+				ns, pod, container,
+				["tee", toRemote(p)],
+				data,
+			);
 			if (r.exitCode !== 0) throw new Error(r.stderr.toString());
 		},
 		mkdir: async (dir) => {
@@ -239,7 +241,8 @@ function createRemoteBashOps(
 	remoteCwd: string,
 	localCwd: string,
 ): BashOperations {
-	const toRemote = (p: string) => p.replace(localCwd, remoteCwd);
+	const toRemote = (p: string) =>
+		p.startsWith(localCwd) ? remoteCwd + p.slice(localCwd.length) : p;
 	return {
 		exec: (command, cwd, opts) => {
 			const fullCmd = `cd ${JSON.stringify(toRemote(cwd))} && ${command}`;
@@ -429,7 +432,7 @@ export default function (pi: ExtensionAPI) {
 	// Initialize on session start
 	pi.on("session_start", async (_event, ctx) => {
 		const flag = pi.getFlag("k8s") as string | undefined;
-		if (!flag && flag !== "") return;
+		if (flag === undefined) return;
 
 		// Try explicit namespace/pod from flag
 		if (flag && flag.includes("/")) {
