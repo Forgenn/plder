@@ -1,5 +1,5 @@
 {
-  "interrupt": ["escape", "ctrl+c"],
+  "interrupt": ["escape"],
   "clear": [],
   "followUp": "alt+enter",
   "dequeue": "alt+up"
