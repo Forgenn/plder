@@ -5,69 +5,101 @@ description: Web search and page reading via SearXNG + reader. Use for research,
 
 # Web Search & Verification
 
-No API keys, no dependencies.
+One script, two commands:
 
-## IMPORTANT: Verification-First Approach
+```bash
+node {baseDir}/web.mjs search <query> [options]
+node {baseDir}/web.mjs read   <url>   [options]
+```
 
-**Never present unverified information as fact.** When answering questions about:
-- Library versions, APIs, or compatibility
-- Best practices or recommended approaches
-- Current state of tools, frameworks, or services
-- Any factual claim that could be outdated or wrong
+---
 
-You MUST:
-1. **Search first** — don't rely on training data alone
-2. **Read the actual source** — snippets aren't enough, fetch the page
-3. **Cross-reference** — check at least 2 sources when claims conflict
-4. **Cite your sources** — always show where information came from
-5. **Say when you can't verify** — if sources are unavailable, say so clearly
+## Rule: Verification-First
+
+**Never state a fact from memory alone.** Always go to the web when:
+- Asked to research, investigate, look up, find, check, verify, compare
+- The answer involves versions, APIs, docs, compatibility, or current state of anything
+- The user shares a URL — always read it, don't guess its contents
+- You're about to recommend a tool, library, or approach — verify it first
+- Any claim that could be outdated or wrong
+
+If you can't reach the web or results are empty, say so explicitly — do not fall back to guessing.
+
+---
 
 ## Search
 
 ```bash
-curl -s "https://searxng.monederobox.dev/search?q=QUERY&format=json"
+node {baseDir}/web.mjs search "query terms here"
+node {baseDir}/web.mjs search "query" -n 10
+node {baseDir}/web.mjs search "query" --time month
+node {baseDir}/web.mjs search "site:docs.anthropic.com tool use"
 ```
 
-Key fields per result: `title`, `url`, `content` (snippet), `engine`, `score`.
+Options:
+- `-n <num>` — number of results (default: 5)
+- `--time day|month|year` — filter by recency
+- `--engines google,duckduckgo,bing,wikipedia` — specific engines
 
-### Options
+Output: numbered list of `title`, `URL`, and a short snippet per result.
 
-```bash
-&engines=google,duckduckgo,bing,wikipedia   # specific engines
-&time_range=day|month|year                  # recency filter
-&pageno=2                                   # pagination
-```
+**Query tips:**
+- Be specific: `kubernetes gateway api httproute timeout` not `kubernetes networking`
+- Use quotes for exact phrases: `"breaking changes" react 19`
+- Scope to a site when relevant: `site:docs.anthropic.com tool use`
 
-### Print top results
-
-```bash
-curl -s "https://searxng.monederobox.dev/search?q=QUERY&format=json" | \
-  node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); \
-  d.results.slice(0,5).forEach(r=>console.log(r.title,'\n ',r.url,'\n ',r.content?.substring(0,120)))"
-```
+---
 
 ## Read a page
 
-Fetches a URL and extracts readable content as markdown. Zero dependencies, Node.js built-in fetch.
-
 ```bash
-node {baseDir}/reader.mjs <url> [maxChars]
+node {baseDir}/web.mjs read https://example.com/page
+node {baseDir}/web.mjs read https://example.com/page --max 5000
 ```
 
-- `maxChars` — output limit (default: 8000)
+Options:
+- `--max <chars>` — output character limit (default: 8000)
 
-## Standard Research Workflow
+Returns the page as readable markdown. Works well for docs, GitHub, Wikipedia, MDN, Stack Overflow. If the output looks like broken/empty HTML, the page is JS-rendered — skip it and try another result.
 
-1. **Search** — find relevant results
-2. **Read** — fetch the top 2-3 most relevant pages
-3. **Verify** — cross-reference key claims across sources
-4. **Synthesize** — combine findings with citations
-5. **Flag uncertainty** — note anything you couldn't verify
+---
 
-## When to Use
+## When to search vs read
 
-- User says: research, investigate, look up, find out, check, verify, compare
-- Questions about library versions, APIs, docs, best practices
-- Any URL the user shares — always read it
-- Any factual claim that could be wrong or outdated
-- Before recommending a specific tool, library, or approach
+**Snippet is enough** — the answer is a simple fact visible in the search snippet (e.g. "what port does X use").
+
+**Must read the full page** — API reference, config options, how-to guides, anything where exact details matter, or when the snippet is ambiguous. Read **2-3 pages** per task to cross-reference.
+
+---
+
+## Full research flow
+
+```bash
+# 1. Search
+node {baseDir}/web.mjs search "kubernetes gateway api httproute timeout syntax"
+
+# 2. Read the most relevant results (usually 2-3)
+node {baseDir}/web.mjs read https://gateway-api.sigs.k8s.io/guides/http-timeouts/
+node {baseDir}/web.mjs read https://gateway-api.sigs.k8s.io/reference/spec/
+
+# 3. Synthesize with citations:
+#    "According to [title](url), the timeout is configured via..."
+```
+
+---
+
+## Output format
+
+After researching, always structure your answer as:
+1. **Direct answer**
+2. **Sources** — every URL you read, as `[title](url)`
+3. **Caveats** — anything you couldn't verify or that may have changed
+
+---
+
+## Error handling
+
+- **"could not reach SearXNG"** — not on Tailscale/LAN; say so, don't guess
+- **No results** — rephrase the query, try different keywords
+- **Broken/empty read output** — page is JS-rendered; try a different result
+- **Timeout** — skip that URL, note it as unverified
