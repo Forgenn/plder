@@ -30,6 +30,18 @@ fi
 ln -s "${SCRIPT_DIR}/settings.json" "${AGENT_DIR}/settings.json"
 info "settings.json -> ${AGENT_DIR}/settings.json"
 
+# Symlink keybindings.json -> ~/.pi/agent/keybindings.json
+if [ -f "${SCRIPT_DIR}/keybindings.json" ]; then
+    if [ -L "${AGENT_DIR}/keybindings.json" ]; then
+        rm "${AGENT_DIR}/keybindings.json"
+    elif [ -f "${AGENT_DIR}/keybindings.json" ]; then
+        mv "${AGENT_DIR}/keybindings.json" "${AGENT_DIR}/keybindings.json.bak"
+        warn "Backed up existing keybindings.json to keybindings.json.bak"
+    fi
+    ln -s "${SCRIPT_DIR}/keybindings.json" "${AGENT_DIR}/keybindings.json"
+    info "keybindings.json -> ${AGENT_DIR}/keybindings.json"
+fi
+
 # Symlink models.json -> ~/.pi/agent/models.json
 if [ -f "${SCRIPT_DIR}/models.json" ]; then
     if [ -L "${AGENT_DIR}/models.json" ]; then

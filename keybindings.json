@@ -1,0 +1,6 @@
+{
+  "interrupt": ["escape", "ctrl+c"],
+  "clear": [],
+  "followUp": "alt+enter",
+  "dequeue": "alt+up"
+}
