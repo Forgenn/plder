@@ -1,62 +1,60 @@
 ---
 name: web
-description: Web search and page reading via self-hosted SearXNG + Jina Reader. Use when you need to look up documentation, research topics, fetch URLs, or find current information.
+description: Web search and page reading. Use when you need to look up documentation, research topics, fetch a URL, or find current information.
 ---
 
 # Web Search & Reading
 
-Two curl-only tools, no API keys, no npm installs.
+No API keys, no dependencies, no prod setup needed.
 
 ## Search
 
+Self-hosted SearXNG at `searxng.monederobox.dev` (Tailscale/LAN only).
+
 ```bash
-curl -s "https://searxng.monederobox.dev/search?q=QUERY&format=json&engines=google,duckduckgo,bing"
+curl -s "https://searxng.monederobox.dev/search?q=QUERY&format=json"
 ```
 
-Returns JSON. Key fields per result:
-- `title` — page title
-- `url` — page URL
-- `content` — snippet
-- `engine` — which engine returned it
-- `score` — relevance
+Key fields per result: `title`, `url`, `content` (snippet), `engine`, `score`.
 
 ### Options
 
 ```bash
-# Specific engines
-&engines=google,duckduckgo,bing,wikipedia
-
-# Time range
-&time_range=day       # past 24h
-&time_range=month
-&time_range=year
-
-# Page
-&pageno=2
+&engines=google,duckduckgo,bing,wikipedia   # specific engines
+&time_range=day|month|year                  # recency filter
+&pageno=2                                   # pagination
 ```
 
-### Example — extract top URLs
+### Print top results
 
 ```bash
-curl -s "https://searxng.monederobox.dev/search?q=kubernetes+gateway+api&format=json" | \
-  node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); d.results.slice(0,5).forEach(r=>console.log(r.title,'\n ',r.url,'\n ',r.content?.substring(0,120)))"
+curl -s "https://searxng.monederobox.dev/search?q=QUERY&format=json" | \
+  node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); \
+  d.results.slice(0,5).forEach(r=>console.log(r.title,'\n ',r.url,'\n ',r.content?.substring(0,120)))"
 ```
 
-## Read a URL
+## Read a page
 
-Fetches any URL and returns clean markdown (strips nav, ads, scripts).
+Fetches a URL and extracts readable content as markdown. Zero dependencies, uses Node.js built-in fetch.
 
 ```bash
-curl -s "https://r.jina.ai/https://example.com/some/page"
+node {baseDir}/reader.mjs <url> [maxChars]
 ```
 
-No key needed. Works on static and JS-rendered pages.
+- `url` — the page to fetch
+- `maxChars` — optional output limit (default: 8000)
+
+### Example
+
+```bash
+node {baseDir}/reader.mjs https://kubernetes.io/docs/concepts/services-networking/gateway/ 5000
+```
 
 ## Workflow
 
 1. **Search** to find relevant URLs
-2. **Read** the most relevant ones for full content
-3. Combine and synthesize for the user
+2. **Read** the top results for full content
+3. Synthesize and answer
 
 ## When to Use
 
