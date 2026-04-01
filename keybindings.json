@@ -2,6 +2,7 @@
   "interrupt": ["escape"],
   "clear": [],
   "copy": [],
+  "selectCancel": ["escape"],
   "followUp": "alt+enter",
   "dequeue": "alt+up"
 }
