@@ -49,6 +49,19 @@ const SKILL_TRIGGERS: SkillTrigger[] = [
 			/\bmerge\s+(this|the)/i,
 			/\bcompleted?\s+(feature|implementation)/i,
 		],
+	},
+	{
+		name: "web",
+		patterns: [
+			/\b(research|investigate|look\s*up|search\s+for|find\s+out|check\s+online)/i,
+			/\b(what\s+is|how\s+to|how\s+does|what\s+are|why\s+does|is\s+there)\b/i,
+			/\b(latest|current|recent|new|updated?)\s+(version|release|docs?|documentation|api)/i,
+			/\b(verify|confirm|fact[- ]?check|validate|double[- ]?check)/i,
+			/\b(compare|alternatives|best\s+practice|recommended|which\s+is\s+better)/i,
+			/\bhttps?:\/\//i,
+			/\b(docs?|documentation|reference|tutorial|guide)\s+(for|on|about)/i,
+			/\b(what\s+changed|breaking\s+changes?|migration|upgrade)\b/i,
+		],
 	}
 ];
 
