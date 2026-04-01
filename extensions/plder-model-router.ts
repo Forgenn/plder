@@ -56,16 +56,9 @@ export default function (pi: ExtensionAPI) {
 		const targetModel = allModels.find((m) => m.id === target.id && m.provider === target.provider);
 
 		if (targetModel) {
-			const success = await pi.setModel(targetModel);
-			if (success) {
-				ctx.ui.setStatus("router", `routed -> ${targetModel.name}`);
-			}
+			await pi.setModel(targetModel);
 		}
 
 		return { action: "continue" };
-	});
-
-	pi.on("session_start", async (_event, ctx) => {
-		ctx.ui.setStatus("router", "model-router active");
 	});
 }

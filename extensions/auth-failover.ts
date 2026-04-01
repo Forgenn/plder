@@ -64,11 +64,7 @@ export default function (pi: ExtensionAPI) {
 			authMethod = "glm";
 			ctx.ui.notify("No Anthropic credentials, using GLM", "warning");
 		}
-
-		ctx.ui.setStatus(
-			"auth",
-			ctx.ui.theme.fg("accent", `Auth: ${authMethod}`),
-		);
+		// No persistent status — only show something when there's a problem
 	});
 
 	pi.on("agent_end", async (event, ctx) => {
@@ -82,10 +78,7 @@ export default function (pi: ExtensionAPI) {
 			if (apiKey) {
 				authMethod = "apikey";
 				pi.registerProvider("anthropic", { apiKey });
-				ctx.ui.setStatus(
-					"auth",
-					ctx.ui.theme.fg("warning", "Auth: apikey (failover)"),
-				);
+				ctx.ui.setStatus("auth", ctx.ui.theme.fg("warning", "⚠ API key (OAuth failed)"));
 				ctx.ui.notify("OAuth failed, switched to API key", "warning");
 				return;
 			}
@@ -96,10 +89,7 @@ export default function (pi: ExtensionAPI) {
 			const glmModel = ctx.modelRegistry.find("zai", "glm-4-plus");
 			if (glmModel) {
 				await pi.setModel(glmModel);
-				ctx.ui.setStatus(
-					"auth",
-					ctx.ui.theme.fg("error", "Auth: glm (failover)"),
-				);
+				ctx.ui.setStatus("auth", ctx.ui.theme.fg("error", "⚠ GLM fallback (Claude down)"));
 				ctx.ui.notify("Claude unavailable, switched to GLM", "warning");
 				return;
 			}
