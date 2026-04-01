@@ -32,20 +32,25 @@ const REASONING_PATTERNS = [
 	/\b(complex|tricky|subtle|edge case)\b/i,
 ];
 
-function classifyTask(text: string, hasImages: boolean): ModelTarget {
-	if (hasImages) return VISION;
+type TaskType = "vision" | "reasoning" | "exploration" | "code";
 
-	if (REASONING_PATTERNS.some((p) => p.test(text))) return REASONING;
-
-	if (EXPLORATION_PATTERNS.some((p) => p.test(text))) return CHEAP;
-
-	// Default to code model for implementation tasks
-	return CODE;
+function classifyTask(text: string, hasImages: boolean): { target: ModelTarget; type: TaskType } {
+	if (hasImages) return { target: VISION, type: "vision" };
+	if (REASONING_PATTERNS.some((p) => p.test(text))) return { target: REASONING, type: "reasoning" };
+	if (EXPLORATION_PATTERNS.some((p) => p.test(text))) return { target: CHEAP, type: "exploration" };
+	return { target: CODE, type: "code" };
 }
+
+const TASK_LABEL: Record<TaskType, string> = {
+	vision: "vision",
+	reasoning: "reasoning",
+	exploration: "explore",
+	code: "code",
+};
 
 export default function (pi: ExtensionAPI) {
 	pi.on("input", async (event: InputEvent, ctx): Promise<InputEventResult> => {
-		const target = classifyTask(event.text, (event.images?.length ?? 0) > 0);
+		const { target, type } = classifyTask(event.text, (event.images?.length ?? 0) > 0);
 		const currentModel = ctx.model;
 
 		if (currentModel && currentModel.id === target.id && currentModel.provider === target.provider) {
@@ -57,6 +62,7 @@ export default function (pi: ExtensionAPI) {
 
 		if (targetModel) {
 			await pi.setModel(targetModel);
+			ctx.ui.notify(`model-router → ${targetModel.name} (${TASK_LABEL[type]})`, "info");
 		}
 
 		return { action: "continue" };
