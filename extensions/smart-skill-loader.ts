@@ -28,10 +28,12 @@ const SKILL_TRIGGERS: SkillTrigger[] = [
 	{
 		name: "tdd",
 		patterns: [
-			/\b(test|testing|spec|unit test)/i,
+			/\b(test|testing|spec|unit\s*test|integration\s*test)/i,
 			/\bwrite\s+tests?\s+for/i,
 			/\btest[- ]driven/i,
 			/\bfailing\s+test/i,
+			/\b(implement|build|create|add|fix|bugfix|bug\s*fix)\b/i,
+			/\bred[- ]green/i,
 		],
 	},
 	{
@@ -87,48 +89,83 @@ async function findSkillFile(skillName: string, cwd: string): Promise<string | n
 	return null;
 }
 
+// Skills that stay in the prompt for the entire session once triggered.
+// Most skills are one-shot (load once, guide that turn).
+// Persistent skills are re-injected on every subsequent turn.
+const PERSISTENT_SKILLS = new Set(["tdd"]);
+
 export default function (pi: ExtensionAPI) {
-	let triggeredSkills = new Set<string>();
+	// Skills triggered for the first time this turn
+	const triggeredSkills = new Set<string>();
+	// Skills that have been triggered at least once this session — re-injected every turn
+	const persistentActive = new Set<string>();
+	// Cache: skillName → file content
+	const contentCache = new Map<string, string>();
+
+	async function loadSkill(name: string, cwd: string): Promise<string | null> {
+		if (contentCache.has(name)) return contentCache.get(name)!;
+		const skillPath = await findSkillFile(name, cwd);
+		if (!skillPath) {
+			console.warn(`[Smart Skill Loader] Skill ${name} not found in any location`);
+			return null;
+		}
+		try {
+			const content = await readFile(skillPath, "utf-8");
+			contentCache.set(name, content);
+			console.log(`[Smart Skill Loader] Loaded skill: ${name} from ${skillPath}`);
+			return content;
+		} catch (error) {
+			console.error(`[Smart Skill Loader] Failed to load skill ${name}:`, error);
+			return null;
+		}
+	}
 
 	pi.on("before_agent_start", async (event, ctx) => {
 		const userMessage = event.messages?.[event.messages.length - 1]?.content;
 		if (!userMessage) return;
 
-		const matchedSkills: string[] = [];
-		
-		// Check each skill trigger
+		const cwd = ctx?.cwd || process.cwd();
+		const toInject: string[] = [];
+
+		// 1. Re-inject persistent skills that were triggered in a previous turn
+		for (const name of persistentActive) {
+			const content = await loadSkill(name, cwd);
+			if (content) toInject.push(`\n### Active: ${name}\n${content}`);
+		}
+
+		// 2. Check each trigger for newly matched skills this turn
 		for (const trigger of SKILL_TRIGGERS) {
 			if (triggeredSkills.has(trigger.name)) continue;
-			
-			const isMatch = trigger.patterns.some(pattern => 
-				pattern.test(userMessage)
-			);
-			
-			if (isMatch) {
-				const skillPath = await findSkillFile(trigger.name, ctx?.cwd || process.cwd());
-				if (skillPath) {
-					try {
-						const skillContent = await readFile(skillPath, "utf-8");
-						matchedSkills.push(`\n### Auto-loaded: ${trigger.name}\n${skillContent}`);
-						triggeredSkills.add(trigger.name);
-						console.log(`[Smart Skill Loader] Auto-loaded skill: ${trigger.name} from ${skillPath}`);
-					} catch (error) {
-						console.error(`[Smart Skill Loader] Failed to load skill ${trigger.name}:`, error);
-					}
-				} else {
-					console.warn(`[Smart Skill Loader] Skill ${trigger.name} not found in any location`);
-				}
+			if (persistentActive.has(trigger.name)) continue; // already injected above
+
+			const isMatch = trigger.patterns.some(pattern => pattern.test(userMessage));
+			if (!isMatch) continue;
+
+			const content = await loadSkill(trigger.name, cwd);
+			if (!content) continue;
+
+			toInject.push(`\n### Auto-loaded: ${trigger.name}\n${content}`);
+			triggeredSkills.add(trigger.name);
+
+			if (PERSISTENT_SKILLS.has(trigger.name)) {
+				persistentActive.add(trigger.name);
 			}
 		}
 
-		if (matchedSkills.length > 0) {
-			const skillsSection = [
-				"\n\n## Auto-Loaded Skills",
-				"The following skills were automatically loaded based on your request:",
-				...matchedSkills
-			].join("\n");
+		if (toInject.length === 0) return;
 
-			return { systemPrompt: event.systemPrompt + skillsSection };
-		}
+		const skillsSection = [
+			"\n\n## Active Skills",
+			...toInject,
+		].join("\n");
+
+		return { systemPrompt: event.systemPrompt + skillsSection };
+	});
+
+	// Clear session state on new session
+	pi.on("session_switch", async () => {
+		triggeredSkills.clear();
+		persistentActive.clear();
+		contentCache.clear();
 	});
 }
