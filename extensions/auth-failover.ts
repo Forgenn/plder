@@ -2,7 +2,7 @@
  * Auth Failover Extension
  *
  * OAuth primary, API key fallback, GLM emergency.
- * On Anthropic auth failure, re-registers provider with API key.
+ * On Anthropic auth or quota failure, re-registers provider with API key.
  * If no API key available, falls back to GLM.
  */
 
@@ -32,7 +32,7 @@ function hasGlm(): boolean {
 }
 
 function isAuthError(error: unknown): boolean {
-	const msg = String(error);
+	const msg = String(error).toLowerCase();
 	return (
 		msg.includes("401") ||
 		msg.includes("403") ||
@@ -43,11 +43,34 @@ function isAuthError(error: unknown): boolean {
 	);
 }
 
+function isQuotaError(error: unknown): boolean {
+	const msg = String(error).toLowerCase();
+	return (
+		msg.includes("out of extra usage") ||
+		msg.includes("api usage limit exceeded") ||
+		msg.includes("quota exceeded")
+	);
+}
+
+function isRateLimitError(error: unknown): boolean {
+	const msg = String(error);
+	return (
+		msg.includes("status 429") || msg.includes("status: 429") ||
+		msg.includes("status 529") || msg.includes("status: 529") ||
+		msg.includes("rate limit") || msg.includes("rate_limit") ||
+		msg.includes("overloaded")
+	);
+}
+
 export default function (pi: ExtensionAPI) {
 	let authMethod: AuthMethod = "oauth";
 	let failoverAttempted = false;
 
 	pi.on("session_start", async (_event, ctx) => {
+		// Reset per-session state so quota recovery between sessions works
+		failoverAttempted = false;
+		delete process.env.PI_ANTHROPIC_UNAVAILABLE;
+
 		const authJson = await readAuthJson();
 		const hasOAuth = authJson && Object.values(authJson).some(
 			(v) => typeof v === "string" && v.includes("sk-ant-oat"),
@@ -64,16 +87,23 @@ export default function (pi: ExtensionAPI) {
 			authMethod = "glm";
 			ctx.ui.notify("No Anthropic credentials, using GLM", "warning");
 		}
-		// No persistent status — only show something when there's a problem
 	});
 
 	pi.on("agent_end", async (event, ctx) => {
 		if (!event.error || failoverAttempted) return;
-		if (!isAuthError(event.error)) return;
+
+		const isQuota = isQuotaError(event.error);
+		const isRateLimit = isRateLimitError(event.error);
+		// Pure auth error: true only when not also a quota error, to avoid
+		// routing a quota failure to the API-key path (same account, same quota wall)
+		const isAuth = !isQuota && isAuthError(event.error);
+
+		if (!isAuth && !isQuota && !isRateLimit) return;
 
 		failoverAttempted = true;
 
-		if (authMethod === "oauth") {
+		// For pure auth errors, try API key fallback before GLM
+		if (isAuth && authMethod === "oauth") {
 			const apiKey = getApiKey();
 			if (apiKey) {
 				authMethod = "apikey";
@@ -84,13 +114,17 @@ export default function (pi: ExtensionAPI) {
 			}
 		}
 
+		// Quota, rate-limit, or auth with no API key → GLM
 		if (authMethod !== "glm" && hasGlm()) {
 			authMethod = "glm";
-			const glmModel = ctx.modelRegistry.find("zai", "glm-4-plus");
+			process.env.PI_ANTHROPIC_UNAVAILABLE = "1";
+			const glmModel = ctx.modelRegistry.find("zai", "glm-5");
 			if (glmModel) {
 				await pi.setModel(glmModel);
-				ctx.ui.setStatus("auth", ctx.ui.theme.fg("error", "⚠ GLM fallback (Claude down)"));
-				ctx.ui.notify("Claude unavailable, switched to GLM", "warning");
+				const label = isQuota ? "⚠ GLM fallback (quota exceeded)" : "⚠ GLM fallback (Claude down)";
+				const msg = isQuota ? "Claude quota exceeded, switched to GLM" : "Claude unavailable, switched to GLM";
+				ctx.ui.setStatus("auth", ctx.ui.theme.fg("error", label));
+				ctx.ui.notify(msg, "warning");
 				return;
 			}
 		}
