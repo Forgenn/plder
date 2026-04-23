@@ -16,6 +16,7 @@ const MODEL_ALIASES: Record<string, { provider: string; model: string }> = {
 	glm: { provider: "zai", model: "glm-5" },
 	"glm-code": { provider: "zai", model: "glm-4.7" },
 	"glm-flash": { provider: "zai", model: "glm-4.7-flash" },
+	"glm-vision": { provider: "zai", model: "glm-5v-turbo" },
 };
 
 export default function (pi: ExtensionAPI) {
@@ -83,8 +84,9 @@ export default function (pi: ExtensionAPI) {
 			errorStr.includes("overloaded");
 
 		if (isRateLimit) {
+			process.env.PI_ANTHROPIC_UNAVAILABLE = "1";
 			ctx.ui.notify(
-				"Claude rate limited. Use /model glm to switch to GLM, or wait.",
+				"Claude rate limited, switching to GLM. Use /model claude to restore.",
 				"warning",
 			);
 		}

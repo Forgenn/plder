@@ -72,6 +72,8 @@ export default function (pi: ExtensionAPI) {
 		if (targetModel) {
 			await pi.setModel(targetModel);
 			ctx.ui.notify(`model-router → ${targetModel.name} (${TASK_LABEL[type]})`, "info");
+		} else {
+			ctx.ui.notify(`model-router: ${target.provider}:${target.id} not found in registry`, "warning");
 		}
 
 		return { action: "continue" };
