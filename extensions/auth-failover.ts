@@ -43,6 +43,15 @@ function isAuthError(error: unknown): boolean {
 	);
 }
 
+function isQuotaError(error: unknown): boolean {
+	const msg = String(error).toLowerCase();
+	return (
+		msg.includes("out of extra usage") ||
+		msg.includes("usage limit") ||
+		msg.includes("quota")
+	);
+}
+
 export default function (pi: ExtensionAPI) {
 	let authMethod: AuthMethod = "oauth";
 	let failoverAttempted = false;
@@ -69,11 +78,15 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("agent_end", async (event, ctx) => {
 		if (!event.error || failoverAttempted) return;
-		if (!isAuthError(event.error)) return;
+
+		const isAuth = isAuthError(event.error);
+		const isQuota = isQuotaError(event.error);
+		if (!isAuth && !isQuota) return;
 
 		failoverAttempted = true;
 
-		if (authMethod === "oauth") {
+		// For auth errors only, try API key fallback before GLM
+		if (isAuth && authMethod === "oauth") {
 			const apiKey = getApiKey();
 			if (apiKey) {
 				authMethod = "apikey";
@@ -86,11 +99,15 @@ export default function (pi: ExtensionAPI) {
 
 		if (authMethod !== "glm" && hasGlm()) {
 			authMethod = "glm";
-			const glmModel = ctx.modelRegistry.find("zai", "glm-4-plus");
+			// Signal other extensions not to route back to Anthropic
+			process.env.PI_ANTHROPIC_UNAVAILABLE = "1";
+			const glmModel = ctx.modelRegistry.find("zai", "glm-5");
 			if (glmModel) {
 				await pi.setModel(glmModel);
-				ctx.ui.setStatus("auth", ctx.ui.theme.fg("error", "⚠ GLM fallback (Claude down)"));
-				ctx.ui.notify("Claude unavailable, switched to GLM", "warning");
+				const label = isQuota ? "⚠ GLM fallback (quota exceeded)" : "⚠ GLM fallback (Claude down)";
+				const msg = isQuota ? "Claude quota exceeded, switched to GLM" : "Claude unavailable, switched to GLM";
+				ctx.ui.setStatus("auth", ctx.ui.theme.fg("error", label));
+				ctx.ui.notify(msg, "warning");
 				return;
 			}
 		}

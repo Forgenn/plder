@@ -9,6 +9,10 @@
     },
     "zai": {
       "modelOverrides": {
+        "glm-5": { "contextWindow": 1000000 },
+        "glm-4.7": { "contextWindow": 1000000 },
+        "glm-4.7-flash": { "contextWindow": 1000000 },
+        "glm-5v-turbo": { "contextWindow": 1000000 },
         "glm-4.5-flash": { "contextWindow": 1000000 },
         "glm-4-plus": { "contextWindow": 1000000 },
         "glm-4.5v": { "contextWindow": 1000000 }

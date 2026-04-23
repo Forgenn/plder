@@ -13,8 +13,9 @@ const MODEL_ALIASES: Record<string, { provider: string; model: string }> = {
 	claude: { provider: "anthropic", model: "claude-opus-4-6" },
 	sonnet: { provider: "anthropic", model: "claude-sonnet-4-6" },
 	haiku: { provider: "anthropic", model: "claude-haiku-4-5-20251001" },
-	glm: { provider: "zai", model: "glm-4.5-flash" },
-	"glm-plus": { provider: "zai", model: "glm-4-plus" },
+	glm: { provider: "zai", model: "glm-5" },
+	"glm-code": { provider: "zai", model: "glm-4.7" },
+	"glm-flash": { provider: "zai", model: "glm-4.7-flash" },
 };
 
 export default function (pi: ExtensionAPI) {
