@@ -87,4 +87,13 @@ for theme in "${SCRIPT_DIR}/themes/"*.json; do
     info "${name} -> ${target}"
 done
 
+# Initialize GitHub CLI if available
+if [ -f "${SCRIPT_DIR}/init-gh.sh" ]; then
+    if "${SCRIPT_DIR}/init-gh.sh"; then
+        info "GitHub CLI configured"
+    else
+        warn "GitHub CLI not configured - run: gh auth login"
+    fi
+fi
+
 info "Done. Run 'pi' from any directory."

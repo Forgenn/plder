@@ -61,6 +61,19 @@ cp models.json.example ~/.pi/agent/models.json
 # Edit with your ZAI_API_KEY
 ```
 
+## GitHub CLI Setup
+
+The `gh` CLI is auto-configured if credentials exist. Your `.zshrc` will verify authentication on shell startup.
+
+To authenticate for the first time:
+```bash
+gh auth login -p ssh  # Use existing SSH key
+# or
+gh auth login -p https  # Use personal access token
+```
+
+Credentials persist in `~/.config/gh/` (stored on persistent volume).
+
 ## Legacy Install (symlinks)
 
 If you prefer symlinks over pi packages: `./install.sh`
