@@ -40,8 +40,16 @@ WORKDIR /home/dev
 # oh-my-zsh for dev user
 RUN sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 
-# Auto-configure gh and SSH agent on shell startup
-RUN echo '\n# Auto-configure GitHub CLI if not authenticated' >> ~/.zshrc \
+# Auto-configure gh, git, and SSH agent on shell startup
+RUN echo '\n# Git configuration (auto-detect from gh)' >> ~/.zshrc \
+    && echo 'if command -v gh &> /dev/null && gh auth status &> /dev/null; then' >> ~/.zshrc \
+    && echo '  GH_USER=$(gh api user --jq ".login" 2>/dev/null)' >> ~/.zshrc \
+    && echo '  if [ -n "$GH_USER" ] && [ "$(git config --global user.name)" = "" ]; then' >> ~/.zshrc \
+    && echo '    git config --global user.name "$GH_USER"' >> ~/.zshrc \
+    && echo '    git config --global user.email "noreply@github.com"' >> ~/.zshrc \
+    && echo '  fi' >> ~/.zshrc \
+    && echo 'fi' >> ~/.zshrc \
+    && echo '\n# Auto-configure GitHub CLI if not authenticated' >> ~/.zshrc \
     && echo 'if command -v gh &> /dev/null; then' >> ~/.zshrc \
     && echo '  if ! gh auth status &> /dev/null; then' >> ~/.zshrc \
     && echo '    echo "⚠️  GitHub CLI not authenticated. Run: gh auth login"' >> ~/.zshrc \
